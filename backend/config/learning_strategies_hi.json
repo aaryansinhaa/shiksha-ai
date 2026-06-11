@@ -1,0 +1,180 @@
+[
+  {
+    "strategy_id": "001-001",
+    "name": "स्व-मूल्यांकन (Self-Evaluation)",
+    "zimmerman_phase": "self_reflection",
+    "category": "Metacognitive strategies",
+    "definitions": [
+      "छात्र द्वारा अपने कार्य की गुणवत्ता या प्रगति का स्वयं मूल्यांकन करना।"
+    ],
+    "student_phrases": [
+      "मैं अपने उत्तरों की स्वयं जाँच करता हूँ",
+      "देखता हूँ कि मुझे कितना समझ आया"
+    ]
+  },
+  {
+    "strategy_id": "002-001",
+    "name": "संगठन एवं रूपांतरण (Organizing and Transforming)",
+    "zimmerman_phase": "performance",
+    "category": "Selecting, organizing, and transforming key pieces of information",
+    "definitions": [
+      "अध्ययन सामग्री को पुनर्व्यवस्थित करना जैसे नोट्स बनाना, आउटलाइन या माइंड मैप बनाना।"
+    ],
+    "student_phrases": [
+      "मैं मुख्य बिंदुओं के नोट्स बनाता हूँ",
+      "माइंड मैप और टेबल बनाकर याद करता हूँ"
+    ]
+  },
+  {
+    "strategy_id": "003-001",
+    "name": "लक्ष्य निर्धारण एवं योजना (Goal Setting & Planning)",
+    "zimmerman_phase": "forethought",
+    "category": "Metacognitive strategies",
+    "definitions": [
+      "अध्ययन के लक्ष्य तय करना और समय सारणी बनाना।"
+    ],
+    "student_phrases": [
+      "मैं दैनिक टाइमटेबल बनाता हूँ",
+      "परीक्षा के लिए छोटे-छोटे लक्ष्य निर्धारित करता हूँ"
+    ]
+  },
+  {
+    "strategy_id": "004-001",
+    "name": "सूचना की खोज (Seeking Information)",
+    "zimmerman_phase": "performance",
+    "category": "Resources",
+    "definitions": [
+      "इंटरनेट, लाइब्रेरी या अतिरिक्त किताबों से जानकारी जुटाना।"
+    ],
+    "student_phrases": [
+      "गूगल और यूट्यूब पर व्याख्यान देखता हूँ",
+      "लाइब्रेरी की किताबों से पढ़ता हूँ"
+    ]
+  },
+  {
+    "strategy_id": "005-001",
+    "name": "रिकॉर्ड रखना एवं निगरानी (Keeping Records & Monitoring)",
+    "zimmerman_phase": "performance",
+    "category": "Selecting, organizing, and transforming key pieces of information",
+    "definitions": [
+      "क्लास नोट्स, गलतियों की सूची या अध्ययन डायरी बनाए रखना।"
+    ],
+    "student_phrases": [
+      "मैं अपनी गलतियों की सूची बनाता हूँ",
+      "अपनी अध्ययन प्रगति को ट्रैक करता हूँ"
+    ]
+  },
+  {
+    "strategy_id": "006-001",
+    "name": "वातावरण संरचना (Environmental Structuring)",
+    "zimmerman_phase": "performance",
+    "category": "Resources",
+    "definitions": [
+      "पढ़ाई के लिए शांत और बाधारहित स्थान चुनना।"
+    ],
+    "student_phrases": [
+      "मैं शांत कमरे में पढ़ता हूँ",
+      "पढ़ाई के समय फोन दूर रख देता हूँ"
+    ]
+  },
+  {
+    "strategy_id": "007-001",
+    "name": "स्व-परिणाम (Self-Consequences)",
+    "zimmerman_phase": "self_reflection",
+    "category": "Resources",
+    "definitions": [
+      "लक्ष्य पूरा होने पर खुद को पुरस्कार या ब्रेक देना।"
+    ],
+    "student_phrases": [
+      "टॉपिक पूरा होने पर मैं ब्रेक लेता हूँ",
+      "खुद को छोटा इनाम देता हूँ"
+    ]
+  },
+  {
+    "strategy_id": "008-001",
+    "name": "पुनरावृत्ति एवं स्मरण (Rehearsing & Memorizing)",
+    "zimmerman_phase": "performance",
+    "category": "Retrieval practice",
+    "definitions": [
+      "बार-बार दोहराकर या फ्लैशकार्ड से याद करना।"
+    ],
+    "student_phrases": [
+      "मैं फॉर्मूले बार-बार दोहराता हूँ",
+      "फ्लैशकार्ड का उपयोग करता हूँ"
+    ]
+  },
+  {
+    "strategy_id": "009-001",
+    "name": "सहपाठियों से सहायता (Seeking Social Assistance - Peers)",
+    "zimmerman_phase": "performance",
+    "category": "Resources",
+    "definitions": [
+      "दोस्तों या सहपाठियों से अध्ययन में मदद लेना।"
+    ],
+    "student_phrases": [
+      "मैं दोस्तों के साथ ग्रुप स्टडी करता हूँ",
+      "सहपाठियों से सवाल पूछता हूँ"
+    ]
+  },
+  {
+    "strategy_id": "009-002",
+    "name": "शिक्षकों से सहायता (Seeking Social Assistance - Teachers)",
+    "zimmerman_phase": "performance",
+    "category": "Resources",
+    "definitions": [
+      "प्रोफेसर या शिक्षक से संदेह पूछना।"
+    ],
+    "student_phrases": [
+      "मैं शिक्षक से डाउट पूछता हूँ",
+      "प्रोफेसर की ऑफिस आवर्स में सलाह लेता हूँ"
+    ]
+  },
+  {
+    "strategy_id": "010-001",
+    "name": "नोट्स की समीक्षा (Reviewing Records - Notes)",
+    "zimmerman_phase": "performance",
+    "category": "Rereading",
+    "definitions": [
+      "परीक्षा से पहले पुराने नोट्स दोहराना।"
+    ],
+    "student_phrases": [
+      "मैं क्लास नोट्स दोबारा पढ़ता हूँ"
+    ]
+  },
+  {
+    "strategy_id": "010-002",
+    "name": "पुराने पेपरों की समीक्षा (Reviewing Records - Tests)",
+    "zimmerman_phase": "performance",
+    "category": "Rereading",
+    "definitions": [
+      "पुराने प्रश्न पत्रों की हल करके समीक्षा करना।"
+    ],
+    "student_phrases": [
+      "मैं पुराने साल के प्रश्न पत्र हल करता हूँ"
+    ]
+  },
+  {
+    "strategy_id": "010-003",
+    "name": "पाठ्यपुस्तकों की समीक्षा (Reviewing Records - Textbooks)",
+    "zimmerman_phase": "performance",
+    "category": "Rereading",
+    "definitions": [
+      "किताब के अध्यायों को दोबारा पढ़ना।"
+    ],
+    "student_phrases": [
+      "मैं टेक्स्टबुक के चैप्टर दोबारा पढ़ता हूँ"
+    ]
+  },
+  {
+    "strategy_id": "000-000",
+    "name": "अन्य / अ-रणनीतिक (Other / Non-SRL)",
+    "zimmerman_phase": "other",
+    "category": "Other",
+    "definitions": [
+      "सामान्य बातें या निष्क्रिय प्रतिक्रियाएँ।"
+    ],
+    "student_phrases": [
+      "मैं सामान्य रूप से पढ़ता हूँ"
+    ]
+  }
+]
