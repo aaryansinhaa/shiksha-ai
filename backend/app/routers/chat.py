@@ -29,8 +29,9 @@ async def reply(
     payload: ReplyRequest,
     db: AsyncSession = Depends(get_async_db)
 ):
+    msg = payload.message or payload.user_message or ""
     resp, status_code = await reply_core(
-        db, payload.client, payload.userid, payload.message
+        db, payload.client, payload.userid, msg
     )
     if status_code != 200:
         raise HTTPException(status_code=status_code, detail=resp.get("error", "Reply failed"))

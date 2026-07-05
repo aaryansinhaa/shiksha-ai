@@ -9,7 +9,8 @@ class StartConversationRequest(BaseModel):
 class ReplyRequest(BaseModel):
     userid: str = Field(..., description="Unique user identifier")
     client: str = Field("web", description="Access client")
-    message: str = Field(..., description="User message content")
+    message: Optional[str] = Field(None, description="User message content")
+    user_message: Optional[str] = Field(None, description="User message content")
 
 class ResetConversationRequest(BaseModel):
     userid: str = Field(..., description="Unique user identifier")

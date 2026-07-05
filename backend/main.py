@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import engine, Base
 from app.routers import chat, dashboard, log, protocol, survey
 
@@ -14,10 +16,20 @@ logger = logging.getLogger("ShikshaAI")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifespan context manager creating database tables on startup."""
-    logger.info("Initializing Shiksha AI Database Tables...")
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    """Lifespan context manager creating database tables & seeding taxonomy on startup."""
+    logger.info("Initializing Shiksha AI Database Tables & Taxons...")
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+            await conn.run_sync(Base.metadata.create_all)
+        
+        from app.services.state_machine import seed_languages_and_contexts
+        async with AsyncSession(engine) as session:
+            await seed_languages_and_contexts(session)
+    except Exception as e:
+        logger.warning(f"Note on vector extension / table init: {e}")
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
     logger.info("Shiksha AI Server Startup Complete.")
     yield
     logger.info("Shiksha AI Server Shutdown.")

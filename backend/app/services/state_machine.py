@@ -12,8 +12,71 @@ from app.services.rag_service import match_strategy_rag
 
 logger = logging.getLogger("ShikshaAI.state_machine")
 
+STRATEGY_TAXONOMY_SEED = [
+    ("001-001", "Self-Evaluation", "Forethought", "Evaluation", "Evaluating one's own progress, self-testing, checking understanding"),
+    ("002-001", "Organizing & Transforming", "Performance", "Task Strategy", "Making outlines, summaries, diagrams, mind maps, reorganizing notes"),
+    ("003-001", "Goal Setting & Planning", "Forethought", "Planning", "Setting study goals, scheduling timetables, planning study sessions"),
+    ("004-001", "Seeking Information", "Performance", "Information", "Searching library, internet, extra reference materials, online research"),
+    ("005-001", "Keeping Records & Monitoring", "Performance", "Monitoring", "Tracking test marks, keeping study logs, recording mistakes"),
+    ("006-001", "Environmental Structuring", "Performance", "Environment", "Finding a quiet study space, eliminating distractions, turning off phone"),
+    ("007-001", "Self-Consequences", "Performance", "Motivation", "Rewarding oneself after finishing targets, self-punishment/incentives"),
+    ("008-001", "Rehearsing & Memorizing", "Performance", "Memorization", "Using flashcards, practice questions, repetition, rote learning"),
+    ("009-001", "Seeking Social Assistance (Peers)", "Performance", "Social Help", "Group study with friends, asking classmates for help"),
+    ("009-002", "Seeking Social Assistance (Teachers)", "Performance", "Social Help", "Asking professor, instructor, or teacher for clarification"),
+    ("010-001", "Reviewing Records (Notes)", "Performance", "Review", "Reviewing lecture notes, class summaries"),
+    ("010-002", "Reviewing Records (Tests)", "Performance", "Review", "Solving previous year exam papers, reviewing graded tests"),
+    ("010-003", "Reviewing Records (Textbooks)", "Performance", "Review", "Re-reading textbook chapters, reading reference books"),
+    ("000-000", "Other / Non-SRL", "Other", "General", "Casual conversation, timepass, non-strategic study statements")
+]
+
+async def seed_languages_and_contexts(db: AsyncSession):
+    """Seed initial Language, Context, Strategy, StrategyTranslation, and StrategyEmbedding rows if missing."""
+    # 1. Seed Languages
+    lang_en = await db.get(Language, "en")
+    if not lang_en:
+        db.add(Language(id="en", lang_code="en"))
+    lang_hi = await db.get(Language, "hi")
+    if not lang_hi:
+        db.add(Language(id="hi", lang_code="hi"))
+    await db.flush()
+
+    # 2. Seed Context
+    ctx = await db.get(Context, 1)
+    if not ctx:
+        db.add(Context(id=1, context="Preparing for exams and difficult topics", language_id="en"))
+    await db.flush()
+
+    # 3. Seed Strategies, StrategyTranslations & StrategyEmbeddings
+    from app.models import StrategyEmbedding
+    from app.services.rag_service import _generate_mock_embedding
+
+    for code, name, phase, category, content in STRATEGY_TAXONOMY_SEED:
+        strat = await db.get(Strategy, code)
+        if not strat:
+            db.add(Strategy(id=code))
+            await db.flush()
+            db.add(StrategyTranslation(id=f"{code}:en", strategy=code, language_id="en", name=name, description=content))
+            db.add(StrategyTranslation(id=f"{code}:hi", strategy=code, language_id="hi", name=name, description=content))
+        
+        # Check StrategyEmbedding
+        emb_exists = await db.get(StrategyEmbedding, code)
+        if not emb_exists:
+            mock_vec = _generate_mock_embedding(f"{name} {content}")
+            db.add(StrategyEmbedding(
+                strategy_id=code,
+                name=name,
+                phase=phase,
+                category=category,
+                content=content,
+                embedding=mock_vec
+            ))
+
+    await db.commit()
+
 async def get_or_create_user(db: AsyncSession, userid: str, client: str, language: str) -> User:
     """Fetch existing user or create a new user entity with language selection."""
+    await seed_languages_and_contexts(db)
+
     query = select(User).where(User.id == userid, User.client == client)
     result = await db.execute(query)
     user = result.scalar_one_or_none()
@@ -90,7 +153,8 @@ async def reply_core(
     user = result.scalar_one_or_none()
 
     if not user or not user.conversation_state:
-        return {"error": "User session not found. Please start a conversation first."}, 400
+        # Auto-create user session if missing
+        user = await get_or_create_user(db, userid, client, "en")
 
     state = user.conversation_state
     if state.interview_completed:

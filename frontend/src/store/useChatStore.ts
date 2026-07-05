@@ -28,7 +28,7 @@ interface ChatState {
 export const useChatStore = create<ChatState>((set) => ({
   userId: `user_${Math.random().toString(36).substring(2, 9)}`,
   client: 'web',
-  language: 'hi',
+  language: 'en',
   messages: [],
   isInterviewComplete: false,
   isLoading: false,

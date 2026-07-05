@@ -5,10 +5,9 @@ from sqlalchemy.orm import DeclarativeBase
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/shiksha_ai"
+    "sqlite+aiosqlite:///:memory:"
 )
 
-# Fallback to SQLite async engine for offline / test environments without PostgreSQL
 if DATABASE_URL.startswith("sqlite"):
     ASYNC_DATABASE_URL = DATABASE_URL
 elif DATABASE_URL.startswith("postgresql://"):

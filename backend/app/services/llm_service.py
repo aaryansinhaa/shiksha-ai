@@ -7,7 +7,7 @@ from typing import Optional, List, Dict, Any
 logger = logging.getLogger("ShikshaAI.llm")
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
-MODEL_NAME = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+MODEL_NAME = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
 DISABLE_LLM = os.environ.get("DISABLE_LLM", "false").lower() in ("true", "1", "yes")
 
 async def get_llm_response(
@@ -22,7 +22,7 @@ async def get_llm_response(
         return _get_mock_response(prompt)
 
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent?key={GEMINI_API_KEY}"
+        candidate_models = [MODEL_NAME, "gemini-flash-latest", "gemini-flash-lite-latest"]
         
         contents = []
         if prev_conversation:
@@ -47,17 +47,24 @@ async def get_llm_response(
         }
 
         async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(url, json=payload)
-            resp.raise_for_status()
-            data = resp.json()
-            
-            candidates = data.get("candidates", [])
-            if candidates:
-                parts = candidates[0].get("content", {}).get("parts", [])
-                if parts:
-                    return parts[0].get("text", "").strip()
-            
-            return _get_mock_response(prompt)
+            for model_candidate in candidate_models:
+                try:
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_candidate}:generateContent?key={GEMINI_API_KEY}"
+                    resp = await client.post(url, json=payload)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        candidates = data.get("candidates", [])
+                        if candidates:
+                            parts = candidates[0].get("content", {}).get("parts", [])
+                            if parts:
+                                text_out = parts[0].get("text", "").strip()
+                                if text_out:
+                                    return text_out
+                except Exception as model_err:
+                    logger.warning(f"Gemini model {model_candidate} attempt failed: {model_err}")
+                    continue
+
+        return _get_mock_response(prompt)
 
     except Exception as e:
         logger.error(f"Error calling Gemini API: {e}. Falling back to mock response.")

@@ -32,7 +32,7 @@ class User(Base):
     context_title: Mapped[Optional[str]] = mapped_column(sa.String(256))
 
     conversation_state: Mapped[Optional["ConversationState"]] = relationship(
-        back_populates="user", cascade="all, delete-orphan", uselist=False
+        back_populates="user", cascade="all, delete-orphan", uselist=False, lazy="selectin"
     )
     interview_answers: Mapped[List["InterviewAnswer"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
@@ -53,7 +53,7 @@ class Strategy(Base):
 
 class StrategyTranslation(Base):
     __tablename__ = "strategy_translation"
-    id: Mapped[str] = mapped_column(sa.String(), primary_key=True)
+    id: Mapped[str] = mapped_column(sa.String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
     strategy: Mapped[str] = mapped_column(sa.ForeignKey("strategy.id"))
     name: Mapped[str] = mapped_column(sa.String())
     description: Mapped[str] = mapped_column(sa.String())

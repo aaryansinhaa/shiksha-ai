@@ -1,0 +1,21 @@
+name: Shiksha AI Live Deployment
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    name: Production Deployment Pipeline
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker Container
+        run: |
+          docker build -t shiksha-ai:latest -f backend/Dockerfile .
+
+      - name: Deploy Confirmation
+        run: |
+          echo "Shiksha AI production build successful and ready for live cloud deployment."
