@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Sparkles, Languages, LayoutDashboard, MessageSquare, BookOpen, BarChart3 } from 'lucide-react';
+import { Sparkles, Languages, LayoutDashboard, MessageSquare, BookOpen, BarChart3, Award } from 'lucide-react';
 import { useChatStore } from '../store/useChatStore';
 
 export const Navbar: React.FC = () => {
@@ -9,8 +9,9 @@ export const Navbar: React.FC = () => {
 
   const navLinks = [
     { path: '/', label_en: 'AI Chat', label_hi: 'AI चैट', icon: MessageSquare },
+    { path: '/results', label_en: 'SRL Profile Report', label_hi: 'परिणाम रिपोर्ट', icon: Award },
     { path: '/teacher', label_en: 'Teacher Dashboard', label_hi: 'शिक्षक डैशबोर्ड', icon: LayoutDashboard },
-    { path: '/researcher', label_en: 'Research Analytics', label_hi: 'अनुसंधान विश्लेषण', icon: BarChart3 },
+    { path: '/researcher', label_en: 'Research & Telemetry', label_hi: 'अनुसंधान एवं टेलीमेट्री', icon: BarChart3 },
     { path: '/protocols', label_en: 'Protocol Editor', label_hi: 'प्रोटोकॉल एडिटर', icon: BookOpen },
   ];
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Send, Bot, User as UserIcon, RefreshCw, Star, Sparkles } from 'lucide-react';
 import { useChatStore } from '../store/useChatStore';
+import { ResultsView } from './ResultsView';
 
 export const ChatContainer: React.FC = () => {
   const {
@@ -90,6 +91,10 @@ export const ChatContainer: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  if (isInterviewComplete) {
+    return <ResultsView />;
+  }
 
   return (
     <div className="flex flex-col h-[calc(100vh-5rem)] max-w-4xl mx-auto p-4">

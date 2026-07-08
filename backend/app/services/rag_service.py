@@ -25,7 +25,7 @@ async def get_embedding(text_input: str) -> Optional[List[float]]:
                 "parts": [{"text": text_input}]
             }
         }
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             resp = await client.post(url, json=payload)
             resp.raise_for_status()
             data = resp.json()

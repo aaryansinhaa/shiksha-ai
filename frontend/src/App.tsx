@@ -8,6 +8,7 @@ import { TeacherDashboard } from './components/TeacherDashboard';
 import { ResearcherDashboard } from './components/ResearcherDashboard';
 import { ProtocolEditor } from './components/ProtocolEditor';
 import { SurveyForm } from './components/SurveyForm';
+import { ResultsView } from './components/ResultsView';
 import { useChatStore } from './store/useChatStore';
 import { useMouseTracker } from './hooks/useMouseTracker';
 
@@ -24,6 +25,7 @@ export const AppContent: React.FC = () => {
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<ChatContainer />} />
+          <Route path="/results" element={<ResultsView />} />
           <Route path="/teacher" element={<TeacherDashboard />} />
           <Route path="/researcher" element={<ResearcherDashboard />} />
           <Route path="/protocols" element={<ProtocolEditor />} />
