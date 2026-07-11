@@ -22,7 +22,13 @@ async def start_conversation(
     )
     if status_code != 200:
         raise HTTPException(status_code=status_code, detail=resp)
-    return ChatMessageResponse(message=resp["message"], complete=False)
+    return ChatMessageResponse(
+        message=resp["message"],
+        complete=resp.get("complete", False),
+        current_context=resp.get("current_context"),
+        total_contexts=resp.get("total_contexts"),
+        completed_count=resp.get("completed_count")
+    )
 
 @router.post("/reply", response_model=ChatMessageResponse)
 async def reply(
@@ -37,7 +43,10 @@ async def reply(
         raise HTTPException(status_code=status_code, detail=resp.get("error", "Reply failed"))
     return ChatMessageResponse(
         message=resp.get("message", ""),
-        complete=resp.get("complete", False)
+        complete=resp.get("complete", False),
+        current_context=resp.get("current_context"),
+        total_contexts=resp.get("total_contexts"),
+        completed_count=resp.get("completed_count")
     )
 
 @router.post("/resetConversation")

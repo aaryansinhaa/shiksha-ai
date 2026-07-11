@@ -5,7 +5,7 @@ from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import (
     User, Language, Context, Strategy, StrategyTranslation,
-    ConversationState, InterviewAnswer, UserStrategy, LlmResponse, StrategyEvaluation, ActivityLog
+    ConversationState, ConversationCompletedContexts, InterviewAnswer, UserStrategy, LlmResponse, StrategyEvaluation, ActivityLog
 )
 from app.services.llm_service import get_llm_response
 from app.services.rag_service import match_strategy_rag
@@ -29,6 +29,33 @@ STRATEGY_TAXONOMY_SEED = [
     ("000-000", "Other / Non-SRL", "Other", "General", "Casual conversation, timepass, non-strategic study statements")
 ]
 
+CONTEXT_DESCRIPTIONS = {
+    1: {
+        "en": "prepare for a challenging exam or topic",
+        "hi": "किसी कठिन परीक्षा या अध्याय की तैयारी करते हैं"
+    },
+    2: {
+        "en": "write an essay or term paper",
+        "hi": "कोई निबंध या असाइनमेंट लिखते हैं"
+    },
+    3: {
+        "en": "solve complex mathematics or science problems",
+        "hi": "गणित या विज्ञान के कठिन प्रश्नों को हल करते हैं"
+    },
+    4: {
+        "en": "read difficult textbook chapters or reading materials",
+        "hi": "पाठ्यपुस्तक के कठिन अध्यायों को पढ़ते हैं"
+    },
+    5: {
+        "en": "complete study assignments when feeling unmotivated",
+        "hi": "बिना प्रेरणा के भी पढ़ाई का काम पूरा करते हैं"
+    },
+    6: {
+        "en": "study at home when there are many distractions around",
+        "hi": "घर पर ध्यान भटकाने वाली चीज़ों के बीच पढ़ाई करते हैं"
+    }
+}
+
 async def seed_languages_and_contexts(db: AsyncSession):
     """Seed initial Language, Context, Strategy, StrategyTranslation, and StrategyEmbedding rows if missing."""
     # 1. Seed Languages
@@ -40,10 +67,19 @@ async def seed_languages_and_contexts(db: AsyncSession):
         db.add(Language(id="hi", lang_code="hi"))
     await db.flush()
 
-    # 2. Seed Context
-    ctx = await db.get(Context, 1)
-    if not ctx:
-        db.add(Context(id=1, context="Preparing for exams and difficult topics", language_id="en"))
+    # 2. Seed 6 Contexts (Zimmerman SRL scenarios)
+    contexts_data = [
+        (1, "Preparing for classroom exams and tests"),
+        (2, "Writing an essay or term paper"),
+        (3, "Solving complex mathematics or science problems"),
+        (4, "Reading difficult textbook chapters or reading assignments"),
+        (5, "Completing assignments when feeling unmotivated"),
+        (6, "Studying at home when distractions are present"),
+    ]
+    for cid, ctext in contexts_data:
+        ctx = await db.get(Context, cid)
+        if not ctx:
+            db.add(Context(id=cid, context=ctext, language_id="en"))
     await db.flush()
 
     # 3. Seed Strategies, StrategyTranslations & StrategyEmbeddings
@@ -119,12 +155,15 @@ async def start_conversation_core(
     else:
         intro_text = "Hello! Welcome to Shiksha AI. I am your AI study advisor. What subject are you currently studying?"
 
-    # Reset state if already completed
-    if user.conversation_state and user.conversation_state.interview_completed:
+    # Reset state
+    if user.conversation_state:
         user.conversation_state.interview_completed = False
         user.conversation_state.current_turn = 0
         user.conversation_state.current_context = 1
         user.conversation_state.current_conversation_step = "intro"
+        await db.execute(delete(ConversationCompletedContexts).where(
+            ConversationCompletedContexts.conversation_id == user.conversation_state.id
+        ))
         await db.commit()
 
     turn = (user.conversation_state.current_turn if user.conversation_state else 0) + 1
@@ -142,7 +181,16 @@ async def start_conversation_core(
     db.add(llm_resp)
     await db.commit()
 
-    return {"message": intro_text}, 200
+    ctx_res = await db.execute(select(Context.id))
+    all_cids = ctx_res.scalars().all()
+
+    return {
+        "message": intro_text,
+        "complete": False,
+        "current_context": 1,
+        "total_contexts": len(all_cids) or 6,
+        "completed_count": 0
+    }, 200
 
 async def reply_core(
     db: AsyncSession, client: str, userid: str, user_message: str
@@ -182,10 +230,36 @@ async def reply_core(
     if current_step == "intro":
         user.study_subject = user_message
         state.current_conversation_step = "strategy"
+        state.current_context = 1
+
+        ctx_res = await db.execute(select(Context.id))
+        all_cids = ctx_res.scalars().all()
+        total_cnt = len(all_cids) or 6
+
+        desc = CONTEXT_DESCRIPTIONS.get(1, CONTEXT_DESCRIPTIONS[1])
         if user.language_id == "hi":
-            reply_text = f"अद्भुत! {user_message} एक महत्वपूर्ण विषय है। जब आप किसी कठिन परीक्षा या अध्याय की तैयारी करते हैं, तो आपकी मुख्य अध्ययन रणनीति क्या होती है?"
+            reply_text = f"अद्भुत! {user_message} एक महत्वपूर्ण विषय है। परिदृश्य 1/{total_cnt}: जब आप {desc['hi']}, तो आपकी मुख्य अध्ययन रणनीति क्या होती है?"
         else:
-            reply_text = f"Great! {user_message} is a key subject. When you prepare for a challenging exam or topic, what is your primary study strategy?"
+            reply_text = f"Great! {user_message} is a key subject. Scenario 1 of {total_cnt}: When you {desc['en']}, what is your primary study strategy?"
+
+        llm_resp = LlmResponse(
+            user_id=userid,
+            user_client=client,
+            message=reply_text,
+            context=state.current_context,
+            turn=turn,
+            conversation_step="strategy"
+        )
+        db.add(llm_resp)
+        await db.commit()
+
+        return {
+            "message": reply_text,
+            "complete": False,
+            "current_context": 1,
+            "total_contexts": total_cnt,
+            "completed_count": 0
+        }, 200
 
     elif current_step == "strategy":
         # RAG Strategy Detection
@@ -205,11 +279,38 @@ async def reply_core(
         state.current_conversation_step = "frequency"
         state.strategy_for_frequency = detected_strat
 
+        ctx_res = await db.execute(select(Context.id))
+        total_cnt = len(ctx_res.scalars().all()) or 6
+
+        comp_res = await db.execute(select(ConversationCompletedContexts.completed_context_id).where(
+            ConversationCompletedContexts.conversation_id == state.id
+        ))
+        completed_ids = set(comp_res.scalars().all())
+
         strat_name = candidates[0].get("name", "अध्ययन तकनीक") if candidates else "study method"
         if user.language_id == "hi":
             reply_text = f"धन्यवाद! आपने '{strat_name}' रणनीति का उल्लेख किया। आप इस तकनीक का कितनी बार उपयोग करते हैं? (कृपया 1 से 5 का रेटिंग चुनें: 1 = कभी-कभार, 5 = हमेशा)"
         else:
             reply_text = f"Thank you! You mentioned using '{strat_name}'. How frequently do you apply this technique? (Please select a rating from 1 to 5: 1 = seldom, 5 = always)"
+
+        llm_resp = LlmResponse(
+            user_id=userid,
+            user_client=client,
+            message=reply_text,
+            context=state.current_context,
+            turn=turn,
+            conversation_step="frequency"
+        )
+        db.add(llm_resp)
+        await db.commit()
+
+        return {
+            "message": reply_text,
+            "complete": False,
+            "current_context": state.current_context,
+            "total_contexts": total_cnt,
+            "completed_count": len(completed_ids)
+        }, 200
 
     elif current_step == "frequency":
         try:
@@ -231,18 +332,77 @@ async def reply_core(
         if recent_strat:
             recent_strat.frequency = freq_val
 
-        # Move to complete step
-        state.current_conversation_step = "complete"
-        state.interview_completed = True
-        is_complete = True
+        # Record completed context into conversation_completed_contexts
+        if state.current_context:
+            comp_check = await db.execute(select(ConversationCompletedContexts).where(
+                ConversationCompletedContexts.conversation_id == state.id,
+                ConversationCompletedContexts.completed_context_id == state.current_context
+            ))
+            if not comp_check.scalar_one_or_none():
+                db.add(ConversationCompletedContexts(
+                    conversation_id=state.id,
+                    completed_context_id=state.current_context
+                ))
+                await db.flush()
 
-        # Calculate scores
-        await calculate_scores(db, user)
+        # Check remaining uncompleted contexts
+        all_ctx_res = await db.execute(select(Context.id).order_by(Context.id))
+        all_context_ids = all_ctx_res.scalars().all()
 
-        if user.language_id == "hi":
-            reply_text = "साक्षात्कार पूर्ण करने के लिए धन्यवाद! आपकी अध्ययन रणनीति का विश्लेषण किया गया है। आप अपनी व्यक्तिगत रिपोर्ट परिणाम पृष्ठ पर देख सकते हैं।"
+        comp_ctx_res = await db.execute(select(ConversationCompletedContexts.completed_context_id).where(
+            ConversationCompletedContexts.conversation_id == state.id
+        ))
+        completed_set = set(comp_ctx_res.scalars().all())
+
+        uncompleted = [cid for cid in all_context_ids if cid not in completed_set]
+
+        if uncompleted:
+            next_context_id = uncompleted[0]
+            state.current_context = next_context_id
+            state.current_conversation_step = "strategy"
+            state.strategy_for_frequency = None
+            is_complete = False
+
+            completed_cnt = len(completed_set)
+            total_cnt = len(all_context_ids)
+
+            desc = CONTEXT_DESCRIPTIONS.get(next_context_id, CONTEXT_DESCRIPTIONS[1])
+            if user.language_id == "hi":
+                reply_text = f"धन्यवाद! अगला परिदृश्य ({completed_cnt + 1}/{total_cnt}): जब आप {desc['hi']}, तो आपकी मुख्य अध्ययन रणनीति क्या होती है?"
+            else:
+                reply_text = f"Thank you! Next scenario ({completed_cnt + 1} of {total_cnt}): When you {desc['en']}, what is your primary study strategy?"
         else:
-            reply_text = "Thank you for completing the interview! Your study strategy profile has been analyzed. You can review your personalized report on the results page."
+            state.current_conversation_step = "complete"
+            state.interview_completed = True
+            is_complete = True
+            await calculate_scores(db, user)
+
+            completed_cnt = len(completed_set)
+            total_cnt = len(all_context_ids)
+
+            if user.language_id == "hi":
+                reply_text = "साक्षात्कार पूर्ण करने के लिए धन्यवाद! सभी परिदृश्यों के लिए आपकी अध्ययन रणनीति का विश्लेषण किया गया है। आप अपनी व्यक्तिगत रिपोर्ट परिणाम पृष्ठ पर देख सकते हैं।"
+            else:
+                reply_text = "Thank you for completing the interview across all study scenarios! Your study strategy profile has been analyzed. You can review your personalized report on the results page."
+
+        llm_resp = LlmResponse(
+            user_id=userid,
+            user_client=client,
+            message=reply_text,
+            context=state.current_context,
+            turn=turn,
+            conversation_step=state.current_conversation_step
+        )
+        db.add(llm_resp)
+        await db.commit()
+
+        return {
+            "message": reply_text,
+            "complete": is_complete,
+            "current_context": state.current_context,
+            "total_contexts": total_cnt,
+            "completed_count": completed_cnt
+        }, 200
 
     else:
         reply_text = "धन्यवाद! / Thank you!"

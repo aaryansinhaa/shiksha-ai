@@ -15,6 +15,9 @@ interface ChatState {
   isLoading: boolean;
   hasConsent: boolean;
   currentStep: string;
+  currentContext: number;
+  totalContexts: number;
+  completedCount: number;
   
   setLanguage: (lang: 'en' | 'hi') => void;
   setHasConsent: (consent: boolean) => void;
@@ -22,6 +25,7 @@ interface ChatState {
   addMessage: (msg: ChatMessage) => void;
   setIsInterviewComplete: (complete: boolean) => void;
   setIsLoading: (loading: boolean) => void;
+  setContextProgress: (current: number, total: number, completed?: number) => void;
   resetSession: () => void;
 }
 
@@ -34,6 +38,9 @@ export const useChatStore = create<ChatState>((set) => ({
   isLoading: false,
   hasConsent: false,
   currentStep: 'intro',
+  currentContext: 1,
+  totalContexts: 6,
+  completedCount: 0,
 
   setLanguage: (lang) => set({ language: lang }),
   setHasConsent: (consent) => set({ hasConsent: consent }),
@@ -41,10 +48,18 @@ export const useChatStore = create<ChatState>((set) => ({
   addMessage: (msg) => set((state) => ({ messages: [...state.messages, msg] })),
   setIsInterviewComplete: (complete) => set({ isInterviewComplete: complete }),
   setIsLoading: (loading) => set({ isLoading: loading }),
+  setContextProgress: (current, total, completed) => set((state) => ({
+    currentContext: current || state.currentContext,
+    totalContexts: total || state.totalContexts,
+    completedCount: completed !== undefined ? completed : state.completedCount
+  })),
   resetSession: () => set({
     userId: `user_${Math.random().toString(36).substring(2, 9)}`,
     messages: [],
     isInterviewComplete: false,
-    currentStep: 'intro'
+    currentStep: 'intro',
+    currentContext: 1,
+    totalContexts: 6,
+    completedCount: 0
   })
 }));

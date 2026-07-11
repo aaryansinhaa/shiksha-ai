@@ -71,6 +71,11 @@ class StrategyEmbedding(Base):
     content: Mapped[Optional[str]] = mapped_column(sa.String())
     embedding = mapped_column(Vector(768), nullable=True)
 
+class ConversationCompletedContexts(Base):
+    __tablename__ = "conversation_completed_contexts"
+    conversation_id: Mapped[str] = mapped_column(sa.ForeignKey("state.id", ondelete="CASCADE"), primary_key=True)
+    completed_context_id: Mapped[int] = mapped_column(sa.ForeignKey("contexts.id", ondelete="CASCADE"), primary_key=True)
+
 class ConversationState(Base):
     __tablename__ = "state"
     id: Mapped[str] = mapped_column(sa.String(64), primary_key=True)
@@ -83,6 +88,7 @@ class ConversationState(Base):
     current_conversation_step: Mapped[Optional[str]] = mapped_column(sa.String(32), default="intro")
 
     user: Mapped["User"] = relationship(back_populates="conversation_state")
+    completed_contexts: Mapped[List["ConversationCompletedContexts"]] = relationship(cascade="all, delete-orphan", lazy="selectin")
 
     __table_args__ = (
         sa.ForeignKeyConstraint([user_id, user_client], [User.id, User.client], ondelete="CASCADE"),

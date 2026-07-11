@@ -25,6 +25,9 @@ class ChatMessageResponse(BaseModel):
     message: str
     complete: bool = False
     degraded: bool = False
+    current_context: Optional[int] = None
+    total_contexts: Optional[int] = None
+    completed_count: Optional[int] = None
 
 class ConversationHistoryResponse(BaseModel):
     messages: List[ChatMessageItem] = []

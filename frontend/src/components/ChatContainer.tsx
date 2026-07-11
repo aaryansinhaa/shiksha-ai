@@ -7,7 +7,8 @@ import { ResultsView } from './ResultsView';
 export const ChatContainer: React.FC = () => {
   const {
     userId, client, language, messages, addMessage, setMessages,
-    isInterviewComplete, setIsInterviewComplete, isLoading, setIsLoading, resetSession
+    isInterviewComplete, setIsInterviewComplete, isLoading, setIsLoading, resetSession,
+    currentContext, totalContexts, setContextProgress
   } = useChatStore();
 
   const [input, setInput] = useState('');
@@ -38,6 +39,9 @@ export const ChatContainer: React.FC = () => {
         language: language
       });
       setMessages([{ id: 1, author: 'bot', message: resp.data.message }]);
+      if (resp.data.current_context && resp.data.total_contexts) {
+        setContextProgress(resp.data.current_context, resp.data.total_contexts, resp.data.completed_count);
+      }
     } catch (err) {
       setMessages([{
         id: 1,
@@ -68,6 +72,11 @@ export const ChatContainer: React.FC = () => {
       });
 
       addMessage({ id: newMsgId + 1, author: 'bot', message: resp.data.message });
+
+      if (resp.data.current_context && resp.data.total_contexts) {
+        setContextProgress(resp.data.current_context, resp.data.total_contexts, resp.data.completed_count);
+      }
+
       if (resp.data.complete) {
         setIsInterviewComplete(true);
       }
@@ -99,26 +108,42 @@ export const ChatContainer: React.FC = () => {
   return (
     <div className="flex flex-col h-[calc(100vh-5rem)] max-w-4xl mx-auto p-4">
       {/* Header Info */}
-      <div className="flex items-center justify-between glass-card p-4 rounded-2xl mb-4 border border-slate-800">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center">
-            <Bot className="w-5 h-5" />
+      <div className="flex flex-col gap-3 glass-card p-4 rounded-2xl mb-4 border border-slate-800">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center">
+              <Bot className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-white">Shiksha AI Study Advisor</h3>
+              <p className="text-xs text-indigo-400">
+                {language === 'hi' ? 'द्विभाषी (हिन्दी/अंग्रेज़ी) GenAI साक्षात्कार' : 'Bilingual (Hindi/English) GenAI Interview'}
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-semibold text-white">Shiksha AI Study Advisor</h3>
-            <p className="text-xs text-indigo-400">
-              {language === 'hi' ? 'द्विभाषी (हिन्दी/अंग्रेज़ी) GenAI साक्षात्कार' : 'Bilingual (Hindi/English) GenAI Interview'}
-            </p>
+
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold text-indigo-300 bg-indigo-950/60 px-3 py-1.5 rounded-lg border border-indigo-800/40">
+              {language === 'hi' ? `परिदृश्य ${currentContext} / ${totalContexts}` : `Scenario ${currentContext} of ${totalContexts}`}
+            </span>
+
+            <button
+              onClick={resetSession}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>{language === 'hi' ? 'नया सत्र' : 'Reset Session'}</span>
+            </button>
           </div>
         </div>
 
-        <button
-          onClick={resetSession}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          <span>{language === 'hi' ? 'नया सत्र' : 'Reset Session'}</span>
-        </button>
+        {/* Dynamic Context Progress Bar */}
+        <div className="w-full bg-slate-800/80 h-2 rounded-full overflow-hidden border border-slate-700/50">
+          <div
+            className="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full transition-all duration-500"
+            style={{ width: `${Math.min(100, Math.max(0, (currentContext / (totalContexts || 6)) * 100))}%` }}
+          />
+        </div>
       </div>
 
       {/* Message History List */}
