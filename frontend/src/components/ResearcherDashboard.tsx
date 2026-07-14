@@ -10,6 +10,7 @@ interface StudentData {
   study_subject: string;
   completed: boolean;
   total_turns: number;
+  completed_contexts_count?: number;
   transcript: { role: string; text: string; turn: number }[];
 }
 
@@ -115,6 +116,7 @@ export const ResearcherDashboard: React.FC = () => {
                 <th className="py-3 px-4">Subject</th>
                 <th className="py-3 px-4">Language</th>
                 <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4">Scenarios</th>
                 <th className="py-3 px-4">Turns</th>
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
@@ -122,7 +124,7 @@ export const ResearcherDashboard: React.FC = () => {
             <tbody className="divide-y divide-slate-800/60">
               {students.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-6 text-center text-slate-500">
+                  <td colSpan={7} className="py-6 text-center text-slate-500">
                     No student records found. Complete an interview on the home page to populate data.
                   </td>
                 </tr>
@@ -142,6 +144,9 @@ export const ResearcherDashboard: React.FC = () => {
                           In Progress
                         </span>
                       )}
+                    </td>
+                    <td className="py-3 px-4 font-mono text-xs text-indigo-300">
+                      {std.completed_contexts_count !== undefined ? std.completed_contexts_count : (std.completed ? 6 : 1)} / 6
                     </td>
                     <td className="py-3 px-4 font-mono">{std.total_turns}</td>
                     <td className="py-3 px-4 text-right">

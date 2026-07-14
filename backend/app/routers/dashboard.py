@@ -149,6 +149,7 @@ async def get_all_students(db: AsyncSession = Depends(get_async_db)):
             "study_subject": u.study_subject or "Not specified",
             "completed": st.interview_completed if st else False,
             "total_turns": st.current_turn if st else 0,
+            "completed_contexts_count": len(st.completed_contexts) if (st and hasattr(st, 'completed_contexts') and st.completed_contexts) else (6 if (st and st.interview_completed) else 0),
             "transcript": transcript
         })
     return output
