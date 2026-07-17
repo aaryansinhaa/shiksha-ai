@@ -237,10 +237,18 @@ async def reply_core(
         total_cnt = len(all_cids) or 6
 
         desc = CONTEXT_DESCRIPTIONS.get(1, CONTEXT_DESCRIPTIONS[1])
-        if user.language_id == "hi":
-            reply_text = f"अद्भुत! {user_message} एक महत्वपूर्ण विषय है। परिदृश्य 1/{total_cnt}: जब आप {desc['hi']}, तो आपकी मुख्य अध्ययन रणनीति क्या होती है?"
+        cleaned_subj = user_message.strip().lower()
+        NON_SUBJECTS = ["nothing", "none", "idk", "no", "n/a", "na", "something", "asdf", "don't know", "dont know"]
+        if cleaned_subj in NON_SUBJECTS:
+            if user.language_id == "hi":
+                reply_text = f"कोई बात नहीं! परिदृश्य 1/{total_cnt}: जब आप {desc['hi']}, तो आपकी मुख्य अध्ययन रणनीति क्या होती है?"
+            else:
+                reply_text = f"No problem! Scenario 1 of {total_cnt}: When you {desc['en']}, what is your primary study strategy?"
         else:
-            reply_text = f"Great! {user_message} is a key subject. Scenario 1 of {total_cnt}: When you {desc['en']}, what is your primary study strategy?"
+            if user.language_id == "hi":
+                reply_text = f"अद्भुत! {user_message} एक महत्वपूर्ण विषय है। परिदृश्य 1/{total_cnt}: जब आप {desc['hi']}, तो आपकी मुख्य अध्ययन रणनीति क्या होती है?"
+            else:
+                reply_text = f"Great! {user_message} is a key subject. Scenario 1 of {total_cnt}: When you {desc['en']}, what is your primary study strategy?"
 
         llm_resp = LlmResponse(
             user_id=userid,
@@ -263,8 +271,14 @@ async def reply_core(
 
     elif current_step == "strategy":
         # RAG Strategy Detection
-        candidates = await match_strategy_rag(db, user_message)
-        detected_strat = candidates[0]["strategy_id"] if candidates else "000-000"
+        cleaned_msg = user_message.strip().lower()
+        NON_SRL_WORDS = ["nothing", "none", "idk", "no", "n/a", "na", "asdf", "dont know", "don't know", "whatever", "nothing much", "nothing special"]
+        if cleaned_msg in NON_SRL_WORDS:
+            candidates = [{"strategy_id": "000-000", "name": "Other / Non-SRL"}]
+            detected_strat = "000-000"
+        else:
+            candidates = await match_strategy_rag(db, user_message)
+            detected_strat = candidates[0]["strategy_id"] if candidates else "000-000"
 
         user_strat = UserStrategy(
             user_id=userid,
@@ -287,11 +301,16 @@ async def reply_core(
         ))
         completed_ids = set(comp_res.scalars().all())
 
-        strat_name = candidates[0].get("name", "अध्ययन तकनीक") if candidates else "study method"
-        if user.language_id == "hi":
-            reply_text = f"धन्यवाद! आपने '{strat_name}' रणनीति का उल्लेख किया। आप इस तकनीक का कितनी बार उपयोग करते हैं? (कृपया 1 से 5 का रेटिंग चुनें: 1 = कभी-कभार, 5 = हमेशा)"
+        if detected_strat == "000-000":
+            strat_label = "सामान्य दृष्टिकोण" if user.language_id == "hi" else "a general study approach"
         else:
-            reply_text = f"Thank you! You mentioned using '{strat_name}'. How frequently do you apply this technique? (Please select a rating from 1 to 5: 1 = seldom, 5 = always)"
+            raw_name = candidates[0].get("name", "") if candidates else ""
+            strat_label = f"'{raw_name}'" if raw_name else ("'अध्ययन तकनीक'" if user.language_id == "hi" else "'this study method'")
+
+        if user.language_id == "hi":
+            reply_text = f"धन्यवाद! आपने {strat_label} का उल्लेख किया। आप इस तकनीक का कितनी बार उपयोग करते हैं? (कृपया 1 से 5 का रेटिंग चुनें: 1 = कभी-कभार, 5 = हमेशा)"
+        else:
+            reply_text = f"Thank you! You mentioned using {strat_label}. How frequently do you apply this technique? (Please select a rating from 1 to 5: 1 = seldom, 5 = always)"
 
         llm_resp = LlmResponse(
             user_id=userid,
