@@ -86,6 +86,7 @@ class ConversationState(Base):
     current_context: Mapped[Optional[int]] = mapped_column(sa.ForeignKey("contexts.id"), nullable=True)
     strategy_for_frequency: Mapped[Optional[str]] = mapped_column(sa.ForeignKey("strategy.id"), nullable=True)
     current_conversation_step: Mapped[Optional[str]] = mapped_column(sa.String(32), default="intro")
+    probe_count: Mapped[int] = mapped_column(sa.Integer, default=0)
 
     user: Mapped["User"] = relationship(back_populates="conversation_state")
     completed_contexts: Mapped[List["ConversationCompletedContexts"]] = relationship(cascade="all, delete-orphan", lazy="selectin")

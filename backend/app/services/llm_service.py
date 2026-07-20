@@ -73,7 +73,11 @@ async def get_llm_response(
 
 def _get_mock_response(prompt: str) -> str:
     prompt_lower = prompt.lower()
-    if "subject" in prompt_lower or "विषय" in prompt_lower or "intro" in prompt_lower:
+    if "probe" in prompt_lower or "clarify" in prompt_lower or "vague" in prompt_lower or "स्पष्ट" in prompt_lower:
+        if "language: hi" in prompt_lower or "in hindi" in prompt_lower or "हिन्दी" in prompt_lower:
+            return "क्या आप थोड़ा और विस्तार से बता सकते हैं कि इस स्थिति में पढ़ाई करते समय आप कौन-कौन सी विशिष्ट तकनीकों या तरीकों का उपयोग करते हैं?"
+        return "Could you elaborate a bit more on what specific study techniques, actions, or tools you use in this scenario?"
+    elif "subject" in prompt_lower or "विषय" in prompt_lower or "intro" in prompt_lower:
         return "नमस्ते! शिक्षा AI में आपका स्वागत है। आप किस विषय की पढ़ाई कर रहे हैं और परीक्षा की तैयारी कैसे करते हैं?"
     elif "frequency" in prompt_lower or "आवृति" in prompt_lower or "likert" in prompt_lower:
         return "आप इस तकनीक (जैसे फ्लैशकार्ड या नोट्स बनाना) का उपयोग कितनी बार करते हैं? (1 = बहुत कम, 5 = हमेशा)"

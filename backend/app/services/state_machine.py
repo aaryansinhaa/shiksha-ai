@@ -135,7 +135,8 @@ async def get_or_create_user(db: AsyncSession, userid: str, client: str, languag
             interview_completed=False,
             current_turn=0,
             current_context=1,
-            current_conversation_step="intro"
+            current_conversation_step="intro",
+            probe_count=0
         )
         db.add(conv_state)
         await db.commit()
@@ -161,6 +162,7 @@ async def start_conversation_core(
         user.conversation_state.current_turn = 0
         user.conversation_state.current_context = 1
         user.conversation_state.current_conversation_step = "intro"
+        user.conversation_state.probe_count = 0
         await db.execute(delete(ConversationCompletedContexts).where(
             ConversationCompletedContexts.conversation_id == user.conversation_state.id
         ))
@@ -231,6 +233,7 @@ async def reply_core(
         user.study_subject = user_message
         state.current_conversation_step = "strategy"
         state.current_context = 1
+        state.probe_count = 0
 
         ctx_res = await db.execute(select(Context.id))
         all_cids = ctx_res.scalars().all()
@@ -269,10 +272,11 @@ async def reply_core(
             "completed_count": 0
         }, 200
 
-    elif current_step == "strategy":
+    elif current_step in ("strategy", "probe"):
         # RAG Strategy Detection
         cleaned_msg = user_message.strip().lower()
-        NON_SRL_WORDS = ["nothing", "none", "idk", "no", "n/a", "na", "asdf", "dont know", "don't know", "whatever", "nothing much", "nothing special"]
+        NON_SRL_WORDS = ["nothing", "none", "idk", "no", "n/a", "na", "asdf", "dont know", "don't know", "whatever", "nothing much", "nothing special", "just study", "read", "do work", "study"]
+        
         if cleaned_msg in NON_SRL_WORDS:
             candidates = [{"strategy_id": "000-000", "name": "Other / Non-SRL"}]
             detected_strat = "000-000"
@@ -280,6 +284,55 @@ async def reply_core(
             candidates = await match_strategy_rag(db, user_message)
             detected_strat = candidates[0]["strategy_id"] if candidates else "000-000"
 
+        ctx_res = await db.execute(select(Context.id))
+        total_cnt = len(ctx_res.scalars().all()) or 6
+
+        comp_res = await db.execute(select(ConversationCompletedContexts.completed_context_id).where(
+            ConversationCompletedContexts.conversation_id == state.id
+        ))
+        completed_ids = set(comp_res.scalars().all())
+
+        # Check if probe state is triggered: detected strategy is 000-000 and probe count < 2
+        if detected_strat == "000-000" and state.probe_count < 2:
+            state.probe_count += 1
+            state.current_conversation_step = "probe"
+
+            c_desc = CONTEXT_DESCRIPTIONS.get(state.current_context or 1, CONTEXT_DESCRIPTIONS[1])
+            prompt_instruction = (
+                f"Language: {user.language_id}. The student gave a vague answer '{user_message}' for study scenario: '{c_desc['en']}'. "
+                "Generate a short, friendly, non-leading follow-up probe asking what specific actions, techniques, or study tools they use in this situation."
+            )
+            llm_text = await get_llm_response(prompt_instruction)
+
+            if not llm_text or "नमस्ते" in llm_text:
+                if user.language_id == "hi":
+                    reply_text = "क्या आप थोड़ा और विस्तार से बता सकते हैं कि इस स्थिति में पढ़ाई करते समय आप किस विशिष्ट तकनीक या विधि का उपयोग करते हैं?"
+                else:
+                    reply_text = "Could you elaborate a bit more on what specific study techniques, actions, or tools you use in this scenario?"
+            else:
+                reply_text = llm_text
+
+            llm_resp = LlmResponse(
+                user_id=userid,
+                user_client=client,
+                message=reply_text,
+                context=state.current_context,
+                turn=turn,
+                conversation_step="probe"
+            )
+            db.add(llm_resp)
+            await db.commit()
+
+            return {
+                "message": reply_text,
+                "complete": False,
+                "current_context": state.current_context,
+                "total_contexts": total_cnt,
+                "completed_count": len(completed_ids)
+            }, 200
+
+        # Valid strategy detected OR max probes (probe_count >= 2) reached
+        state.probe_count = 0  # Reset probe count for next step
         user_strat = UserStrategy(
             user_id=userid,
             user_client=client,
@@ -292,14 +345,6 @@ async def reply_core(
 
         state.current_conversation_step = "frequency"
         state.strategy_for_frequency = detected_strat
-
-        ctx_res = await db.execute(select(Context.id))
-        total_cnt = len(ctx_res.scalars().all()) or 6
-
-        comp_res = await db.execute(select(ConversationCompletedContexts.completed_context_id).where(
-            ConversationCompletedContexts.conversation_id == state.id
-        ))
-        completed_ids = set(comp_res.scalars().all())
 
         if detected_strat == "000-000":
             strat_label = "सामान्य दृष्टिकोण" if user.language_id == "hi" else "a general study approach"
@@ -380,6 +425,7 @@ async def reply_core(
             state.current_context = next_context_id
             state.current_conversation_step = "strategy"
             state.strategy_for_frequency = None
+            state.probe_count = 0
             is_complete = False
 
             completed_cnt = len(completed_set)
@@ -393,6 +439,7 @@ async def reply_core(
         else:
             state.current_conversation_step = "complete"
             state.interview_completed = True
+            state.probe_count = 0
             is_complete = True
             await calculate_scores(db, user)
 

@@ -83,14 +83,16 @@ async def match_strategy_rag(
 
 def _fallback_keyword_strategy_match(text_input: str) -> List[Dict[str, Any]]:
     text_lower = text_input.lower()
-    if any(k in text_lower for k in ["repeat", "flashcard", "doohra", "पुनरावृत्ति", "याद"]):
+    if any(k in text_lower for k in ["repeat", "flashcard", "doohra", "पुनरावृत्ति", "याद", "practice"]):
         return [{"strategy_id": "008-001", "name": "Rehearsing & Memorizing"}]
-    elif any(k in text_lower for k in ["notes", "map", "mindmap", "नोट्स", "माइंड मैप"]):
-        return [{"strategy_id": "002-001", "name": "Organizing and Transforming"}]
-    elif any(k in text_lower for k in ["timetable", "schedule", "goal", "लक्ष्य", "टाइमटेबल"]):
+    elif any(k in text_lower for k in ["notes", "map", "mindmap", "नोट्स", "माइंड मैप", "outline", "summary", "summaries"]):
+        return [{"strategy_id": "002-001", "name": "Organizing & Transforming"}]
+    elif any(k in text_lower for k in ["timetable", "schedule", "goal", "लक्ष्य", "टाइमटेबल", "plan"]):
         return [{"strategy_id": "003-001", "name": "Goal Setting & Planning"}]
     elif any(k in text_lower for k in ["friend", "group", "peer", "मित्र", "दोस्त"]):
         return [{"strategy_id": "009-001", "name": "Seeking Social Assistance (Peers)"}]
     elif any(k in text_lower for k in ["quiet", "distraction", "शांत", "फोन"]):
         return [{"strategy_id": "006-001", "name": "Environmental Structuring"}]
+    elif any(k in text_lower for k in ["paper", "test", "exam", "question", "quiz"]):
+        return [{"strategy_id": "010-002", "name": "Reviewing Records (Tests)"}]
     return [{"strategy_id": "000-000", "name": "Other / Non-SRL"}]

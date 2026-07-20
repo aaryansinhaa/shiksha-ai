@@ -104,3 +104,54 @@ async def test_multi_context_interview_loop():
         res = await db.execute(q)
         completed_cids = res.scalars().all()
         assert completed_cids == [1, 2, 3, 4, 5, 6]
+
+@pytest.mark.asyncio
+async def test_probe_state_and_clarification_limit():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    user_id = "test_probe_user"
+    client_id = "web"
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        # Start & send subject
+        await client.post("/startConversation", json={"userid": user_id, "client": client_id, "language": "en"})
+        await client.post("/reply", json={"userid": user_id, "client": client_id, "message": "Chemistry"})
+
+        # Scenario 1 - Send vague answer "nothing" -> Triggers PROBE 1
+        p1_resp = await client.post("/reply", json={"userid": user_id, "client": client_id, "message": "nothing"})
+        assert p1_resp.status_code == 200
+        p1_data = p1_resp.json()
+        assert p1_data["complete"] is False
+        assert "1 to 5" not in p1_data["message"]  # Should NOT skip to rating
+        assert any(w in p1_data["message"].lower() for w in ["elaborate", "specific", "technique", "action", "detail", "could you"])
+
+        # Probe 1 Response - Send specific strategy -> Transitions to Frequency rating
+        strat_resp = await client.post("/reply", json={
+            "userid": user_id,
+            "client": client_id,
+            "message": "I make flashcards and practice previous year test questions."
+        })
+        assert strat_resp.status_code == 200
+        s_data = strat_resp.json()
+        assert "1 to 5" in s_data["message"] or "rating" in s_data["message"]
+
+        # Send frequency rating -> Advances to Scenario 2
+        f_resp = await client.post("/reply", json={"userid": user_id, "client": client_id, "message": "5"})
+        assert f_resp.status_code == 200
+        assert f_resp.json()["current_context"] == 2
+
+        # Scenario 2 - Test 2-probe limit with repeated vague answers
+        # Turn 1: Vague answer -> Probe 1
+        probe1 = await client.post("/reply", json={"userid": user_id, "client": client_id, "message": "just study"})
+        assert "1 to 5" not in probe1.json()["message"]
+
+        # Turn 2: Vague answer -> Probe 2
+        probe2 = await client.post("/reply", json={"userid": user_id, "client": client_id, "message": "read"})
+        assert "1 to 5" not in probe2.json()["message"]
+
+        # Turn 3: Vague answer -> Probe limit reached (>= 2), defaults to non-SRL and transitions to frequency rating!
+        limit_resp = await client.post("/reply", json={"userid": user_id, "client": client_id, "message": "idk"})
+        assert limit_resp.status_code == 200
+        l_data = limit_resp.json()
+        assert "1 to 5" in l_data["message"] or "rating" in l_data["message"]
