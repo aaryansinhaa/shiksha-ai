@@ -198,6 +198,8 @@ async def reply_core(
     db: AsyncSession, client: str, userid: str, user_message: str
 ) -> Tuple[Dict[str, Any], int]:
     """Process incoming user turn through interview state machine."""
+    await seed_languages_and_contexts(db)
+
     query = select(User).where(User.id == userid, User.client == client)
     result = await db.execute(query)
     user = result.scalar_one_or_none()
