@@ -23,12 +23,12 @@ export const ChatContainer: React.FC = () => {
     scrollToBottom();
   }, [messages, isLoading]);
 
-  // Initialize conversation on start
+  // Initialize conversation on start or session reset
   useEffect(() => {
     if (messages.length === 0) {
       initConversation();
     }
-  }, [language]);
+  }, [messages.length, language, userId]);
 
   const initConversation = async () => {
     setIsLoading(true);
