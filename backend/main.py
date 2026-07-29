@@ -21,6 +21,14 @@ async def lifespan(app: FastAPI):
     try:
         async with engine.begin() as conn:
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+            await conn.execute(text("ALTER TABLE state ADD COLUMN IF NOT EXISTS probe_count INTEGER DEFAULT 0;"))
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS conversation_completed_contexts (
+                    conversation_id VARCHAR REFERENCES state(id) ON DELETE CASCADE,
+                    completed_context_id INTEGER REFERENCES contexts(id) ON DELETE CASCADE,
+                    PRIMARY KEY (conversation_id, completed_context_id)
+                );
+            """))
             await conn.run_sync(Base.metadata.create_all)
         
         from app.services.state_machine import seed_languages_and_contexts
