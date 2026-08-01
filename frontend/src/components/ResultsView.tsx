@@ -29,14 +29,62 @@ export const ResultsView: React.FC = () => {
         setEvaluations(resp.data);
       }
     } catch (err) {
-      // Fallback mock evaluations if new user
+      // Fallback mock evaluations if API error
       setEvaluations([
         { strategy_id: '003-001', strategy_name: 'Goal Setting & Planning', SU: true, SF: 2, SC: 8, RC: 4.0 },
         { strategy_id: '008-001', strategy_name: 'Rehearsing & Memorizing', SU: true, SF: 1, SC: 5, RC: 5.0 },
         { strategy_id: '002-001', strategy_name: 'Organizing & Transforming', SU: true, SF: 1, SC: 4, RC: 4.0 }
       ]);
     } finally {
-      setLoading(false);
+      setIsLoadingFalse();
+    }
+  };
+
+  const setIsLoadingFalse = () => {
+    setLoading(false);
+  };
+
+  const getPersonalizedRecommendation = (items: EvaluationItem[], lang: 'en' | 'hi'): string => {
+    if (!items || items.length === 0) {
+      return lang === 'hi'
+        ? 'अपनी अध्ययन दिनचर्या को बेहतर बनाने के लिए लक्ष्य निर्धारण (Goal Setting) तथा पुनरावृत्ति अभ्यास जैसी तकनीकों का प्रयोग शुरू करें।'
+        : 'To build a structured study routine, start by introducing explicit goal setting, timetable planning, and flashcard practice across your study sessions.';
+    }
+
+    const srlItems = items.filter(i => i.strategy_id !== '000-000');
+
+    if (srlItems.length === 0) {
+      return lang === 'hi'
+        ? 'आपके द्वारा बताई गई तकनीकों का विश्लेषण किया गया है। अध्ययन प्रदर्शन सुधारने के लिए विशिष्ट SRL रणनीतियाँ (जैसे माइंड मैप, लक्ष्य निर्धारण, परीक्षा अभ्यास) अपनाने का प्रयास करें।'
+        : 'Your study approach has been analyzed. To maximize retention and test performance, consider adopting specific Self-Regulated Learning strategies like Mind Mapping, Goal Setting, and Practice Testing.';
+    }
+
+    const sorted = [...srlItems].sort((a, b) => b.RC - a.RC);
+    const topStrats = sorted.slice(0, 2).map(s => s.strategy_name || s.strategy_id);
+
+    const allKnownCodes = ["001-001", "002-001", "003-001", "004-001", "005-001", "006-001", "008-001", "010-001", "010-002"];
+    const usedCodes = new Set(srlItems.map(s => s.strategy_id));
+    const missingCodes = allKnownCodes.filter(c => !usedCodes.has(c));
+
+    const strategyNamesMap: Record<string, { en: string; hi: string }> = {
+      "001-001": { en: "Self-Evaluation", hi: "स्व-मूल्यांकन (Self-Evaluation)" },
+      "002-001": { en: "Organizing & Transforming", hi: "नोट्स तथा माइंड मैप (Organizing)" },
+      "003-001": { en: "Goal Setting & Planning", hi: "लक्ष्य निर्धारण एवं टाइमटेबल (Goal Setting)" },
+      "004-001": { en: "Seeking Information", hi: "अतिरिक्त संदर्भ खोजना (Seeking Information)" },
+      "005-001": { en: "Keeping Records & Monitoring", hi: "स्टडी लॉग तथा प्रगति ट्रैकिंग (Monitoring)" },
+      "006-001": { en: "Environmental Structuring", hi: "शांत अध्ययन स्थान (Environmental Structuring)" },
+      "008-001": { en: "Rehearsing & Memorizing", hi: "पुनरावृत्ति तथा फ्लैशकार्ड (Rehearsal)" },
+      "010-001": { en: "Reviewing Notes", hi: "नोट्स की समीक्षा (Reviewing Notes)" },
+      "010-002": { en: "Reviewing Tests", hi: "पुराने प्रश्न पत्रों का अभ्यास (Reviewing Tests)" }
+    };
+
+    const suggestedCode = missingCodes.length > 0 ? missingCodes[0] : "001-001";
+    const sugName = strategyNamesMap[suggestedCode] || { en: "Self-Evaluation", hi: "स्व-मूल्यांकन" };
+
+    if (lang === 'hi') {
+      return `आप ${topStrats.join(' तथा ')} में उच्च निरंतरता प्रदर्शित करते हैं। अपने प्रदर्शन को और बेहतर बनाने के लिए ${sugName.hi} तकनीक को अपनी पढ़ाई में शामिल करने पर विचार करें।`;
+    } else {
+      return `You demonstrate high consistency in ${topStrats.join(' and ')}. To further maximize academic performance across study scenarios, consider incorporating ${sugName.en} into your routine.`;
     }
   };
 
@@ -105,16 +153,14 @@ export const ResultsView: React.FC = () => {
         ))}
       </div>
 
-      {/* Personalized AI Feedback Card */}
+      {/* Dynamic Personalized AI Feedback Card */}
       <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-3">
         <div className="flex items-center gap-2 text-amber-400 font-semibold text-sm">
           <Sparkles className="w-4 h-4" />
           {language === 'hi' ? 'AI अध्ययन सलाहकार सिफारिशें' : 'AI Advisor Recommendations'}
         </div>
         <p className="text-slate-300 text-sm leading-relaxed">
-          {language === 'hi'
-            ? 'आप लक्ष्य निर्धारण (Goal Setting) तथा पुनरावृत्ति (Rehearsal) में उत्कृष्ट हैं। अवधारणात्मक समझ को और मजबूत करने के लिए नोट्स की समीक्षा (Reviewing Notes) तथा स्व-मूल्यांकन (Self-Evaluation) तकनीकों का अधिक प्रयोग करें।'
-            : 'You demonstrate high consistency in Goal Setting & Planning and Rehearsal. To maximize exam performance, consider combining flashcard practice with Environmental Structuring (minimizing digital distractions during deep focus).'}
+          {getPersonalizedRecommendation(evaluations, language)}
         </p>
       </div>
     </div>
