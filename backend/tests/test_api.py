@@ -3,7 +3,8 @@ from httpx import AsyncClient, ASGITransport
 from main import app
 from app.database import engine, Base, AsyncSessionLocal
 from sqlalchemy import select
-from app.models import ConversationCompletedContexts, ConversationState
+from app.models import ConversationCompletedContexts, ConversationState, UserStrategy, StrategyEvaluation, User
+from app.services.state_machine import calculate_scores
 
 @pytest.mark.asyncio
 async def test_health_and_protocols():
@@ -155,3 +156,50 @@ async def test_probe_state_and_clarification_limit():
         assert limit_resp.status_code == 200
         l_data = limit_resp.json()
         assert "1 to 5" in l_data["message"] or "rating" in l_data["message"]
+
+@pytest.mark.asyncio
+async def test_user_strategy_ordering_and_score_deduplication():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    user_id = "test_dedup_user"
+    client_id = "web"
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        # Start & set subject
+        await client.post("/startConversation", json={"userid": user_id, "client": client_id, "language": "en"})
+        await client.post("/reply", json={"userid": user_id, "client": client_id, "message": "Computer Science"})
+
+        # Complete all 6 scenarios
+        for c in range(1, 7):
+            await client.post("/reply", json={"userid": user_id, "client": client_id, "message": f"Flashcards and outline notes for context {c}"})
+            await client.post("/reply", json={"userid": user_id, "client": client_id, "message": "4"})
+
+    async with AsyncSessionLocal() as db:
+        # 1. Verify UserStrategy rows have created_at populated
+        us_q = select(UserStrategy).where(UserStrategy.user_id == user_id, UserStrategy.user_client == client_id)
+        us_res = await db.execute(us_q)
+        user_strats = us_res.scalars().all()
+        assert len(user_strats) > 0
+        for s in user_strats:
+            assert s.created_at is not None
+
+        # 2. Verify StrategyEvaluation contains no duplicate strategy entries
+        eval_q = select(StrategyEvaluation).where(StrategyEvaluation.user_id == user_id, StrategyEvaluation.user_client == client_id)
+        eval_res = await db.execute(eval_q)
+        evals = eval_res.scalars().all()
+        strategy_ids = [e.strategy for e in evals]
+        assert len(strategy_ids) == len(set(strategy_ids))  # Zero duplicates
+
+        # 3. Call calculate_scores again and verify no duplicate evaluations created
+        u_q = select(User).where(User.id == user_id, User.client == client_id)
+        u_res = await db.execute(u_q)
+        user = u_res.scalar_one()
+
+        await calculate_scores(db, user)
+
+        eval_res2 = await db.execute(eval_q)
+        evals2 = eval_res2.scalars().all()
+        strategy_ids2 = [e.strategy for e in evals2]
+        assert len(strategy_ids2) == len(set(strategy_ids2))  # Still zero duplicates
+        assert len(evals2) == len(evals)  # Count did not inflate

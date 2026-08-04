@@ -123,6 +123,7 @@ class UserStrategy(Base):
     context: Mapped[int] = mapped_column(sa.ForeignKey("contexts.id"))
     strategy: Mapped[str] = mapped_column(sa.ForeignKey("strategy.id"))
     frequency: Mapped[Optional[int]] = mapped_column(sa.Integer, nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(server_default=sa.func.now())
 
     user: Mapped["User"] = relationship(back_populates="strategies")
     interview_answer: Mapped[Optional["InterviewAnswer"]] = relationship(back_populates="strategies")

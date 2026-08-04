@@ -391,7 +391,7 @@ async def reply_core(
             UserStrategy.user_id == userid,
             UserStrategy.user_client == client,
             UserStrategy.context == state.current_context
-        ).order_by(UserStrategy.id.desc())
+        ).order_by(UserStrategy.created_at.desc(), UserStrategy.id.desc())
         strat_res = await db.execute(strat_query)
         recent_strat = strat_res.scalars().first()
 
@@ -490,6 +490,13 @@ async def reply_core(
 
 async def calculate_scores(db: AsyncSession, user: User) -> List[Dict[str, Any]]:
     """Calculate quantitative SRL scores: SU (Strategy Use), SF (Frequency), SC (Consistency), RC (Relative Consistency)."""
+    # Delete previous evaluations for this user session to prevent duplicate rows
+    await db.execute(delete(StrategyEvaluation).where(
+        StrategyEvaluation.user_id == user.id,
+        StrategyEvaluation.user_client == user.client
+    ))
+    await db.flush()
+
     query = select(UserStrategy).where(UserStrategy.user_id == user.id, UserStrategy.user_client == user.client)
     res = await db.execute(query)
     strategies = res.scalars().all()

@@ -22,6 +22,7 @@ async def lifespan(app: FastAPI):
         async with engine.begin() as conn:
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
             await conn.execute(text("ALTER TABLE state ADD COLUMN IF NOT EXISTS probe_count INTEGER DEFAULT 0;"))
+            await conn.execute(text("ALTER TABLE user_strategy ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();"))
             await conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS conversation_completed_contexts (
                     conversation_id VARCHAR REFERENCES state(id) ON DELETE CASCADE,
