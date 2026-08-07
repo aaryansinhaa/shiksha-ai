@@ -5,7 +5,7 @@ from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import (
     User, Language, Context, Strategy, StrategyTranslation,
-    ConversationState, ConversationCompletedContexts, InterviewAnswer, UserStrategy, LlmResponse, StrategyEvaluation, ActivityLog
+    ConversationState, ConversationCompletedContexts, InterviewAnswer, UserStrategy, LlmResponse, StrategyEvaluation, ActivityLog, Archive
 )
 from app.services.llm_service import get_llm_response
 from app.services.rag_service import match_strategy_rag
@@ -534,3 +534,64 @@ async def calculate_scores(db: AsyncSession, user: User) -> List[Dict[str, Any]]
 
     await db.commit()
     return results
+
+async def reset_conversation_core(
+    db: AsyncSession, userid: str, client: str
+) -> Tuple[Dict[str, Any], int]:
+    """Archive active user transcript and clear active database state for new session."""
+    user_q = select(InterviewAnswer).where(
+        InterviewAnswer.user_id == userid, InterviewAnswer.user_client == client
+    )
+    bot_q = select(LlmResponse).where(
+        LlmResponse.user_id == userid, LlmResponse.user_client == client
+    )
+    user_res = await db.execute(user_q)
+    bot_res = await db.execute(bot_q)
+    user_rows = user_res.scalars().all()
+    bot_rows = bot_res.scalars().all()
+
+    combined = []
+    for r in user_rows:
+        combined.append({
+            "turn": r.turn,
+            "author": "user",
+            "message": r.message,
+            "time": str(getattr(r, "message_time", None))
+        })
+    for r in bot_rows:
+        combined.append({
+            "turn": r.turn,
+            "author": "bot",
+            "message": r.message,
+            "time": str(getattr(r, "message_time", None))
+        })
+    combined.sort(key=lambda x: (x["turn"], 0 if x["author"] == "user" else 1))
+
+    if combined:
+        archive_rec = Archive(
+            user_id=userid,
+            user_client=client,
+            archived_conversation=json.dumps(combined)
+        )
+        db.add(archive_rec)
+
+    conv_id = f"{userid}:{client}"
+    await db.execute(delete(InterviewAnswer).where(InterviewAnswer.user_id == userid, InterviewAnswer.user_client == client))
+    await db.execute(delete(LlmResponse).where(LlmResponse.user_id == userid, LlmResponse.user_client == client))
+    await db.execute(delete(UserStrategy).where(UserStrategy.user_id == userid, UserStrategy.user_client == client))
+    await db.execute(delete(StrategyEvaluation).where(StrategyEvaluation.user_id == userid, StrategyEvaluation.user_client == client))
+    await db.execute(delete(ConversationCompletedContexts).where(ConversationCompletedContexts.conversation_id == conv_id))
+
+    st_q = select(ConversationState).where(ConversationState.id == conv_id)
+    st_res = await db.execute(st_q)
+    state = st_res.scalar_one_or_none()
+    if state:
+        state.interview_completed = False
+        state.current_turn = 0
+        state.current_context = 1
+        state.probe_count = 0
+        state.strategy_for_frequency = None
+        state.current_conversation_step = "intro"
+
+    await db.commit()
+    return {"message": "Conversation has been archived and reset successfully."}, 200

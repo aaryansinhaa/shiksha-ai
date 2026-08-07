@@ -30,6 +30,15 @@ async def lifespan(app: FastAPI):
                     PRIMARY KEY (conversation_id, completed_context_id)
                 );
             """))
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS archive (
+                    id SERIAL PRIMARY KEY,
+                    user_id VARCHAR(64) NOT NULL,
+                    user_client VARCHAR(64) NOT NULL,
+                    archived_conversation TEXT NOT NULL,
+                    archived_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+            """))
             await conn.run_sync(Base.metadata.create_all)
         
         from app.services.state_machine import seed_languages_and_contexts

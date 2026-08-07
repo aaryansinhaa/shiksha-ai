@@ -7,7 +7,7 @@ from app.schemas.chat import (
     StartConversationRequest, ReplyRequest, ResetConversationRequest,
     ChatMessageResponse, ConversationHistoryResponse, ChatMessageItem
 )
-from app.services.state_machine import start_conversation_core, reply_core
+from app.services.state_machine import start_conversation_core, reply_core, reset_conversation_core
 from app.models import InterviewAnswer, LlmResponse
 
 router = APIRouter(prefix="", tags=["Chat"])
@@ -21,9 +21,9 @@ async def start_conversation(
         db, payload.language, payload.client, payload.userid
     )
     if status_code != 200:
-        raise HTTPException(status_code=status_code, detail=resp)
+        raise HTTPException(status_code=status_code, detail=resp.get("error", "Failed to start conversation"))
     return ChatMessageResponse(
-        message=resp["message"],
+        message=resp.get("message", ""),
         complete=resp.get("complete", False),
         current_context=resp.get("current_context"),
         total_contexts=resp.get("total_contexts"),
@@ -35,7 +35,9 @@ async def reply(
     payload: ReplyRequest,
     db: AsyncSession = Depends(get_async_db)
 ):
-    msg = payload.message or payload.user_message or ""
+    msg = payload.message if payload.message is not None else payload.answer
+    if msg is None:
+        raise HTTPException(status_code=400, detail="Missing message or answer parameter")
     resp, status_code = await reply_core(
         db, payload.client, payload.userid, msg
     )
@@ -54,8 +56,10 @@ async def reset_conversation(
     payload: ResetConversationRequest,
     db: AsyncSession = Depends(get_async_db)
 ):
-    # Reset conversation handler
-    return {"message": "Conversation has been reset successfully."}
+    resp, status_code = await reset_conversation_core(db, payload.userid, payload.client)
+    if status_code != 200:
+        raise HTTPException(status_code=status_code, detail=resp)
+    return resp
 
 @router.get("/conversation", response_model=ConversationHistoryResponse)
 async def get_conversation(

@@ -1,9 +1,10 @@
 import pytest
+import json
 from httpx import AsyncClient, ASGITransport
 from main import app
 from app.database import engine, Base, AsyncSessionLocal
 from sqlalchemy import select
-from app.models import ConversationCompletedContexts, ConversationState, UserStrategy, StrategyEvaluation, User
+from app.models import ConversationCompletedContexts, ConversationState, UserStrategy, StrategyEvaluation, User, Archive, InterviewAnswer, LlmResponse
 from app.services.state_machine import calculate_scores
 
 @pytest.mark.asyncio
@@ -203,3 +204,55 @@ async def test_user_strategy_ordering_and_score_deduplication():
         strategy_ids2 = [e.strategy for e in evals2]
         assert len(strategy_ids2) == len(set(strategy_ids2))  # Still zero duplicates
         assert len(evals2) == len(evals)  # Count did not inflate
+
+@pytest.mark.asyncio
+async def test_reset_conversation_archiving_and_cleanup():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    user_id = "test_reset_archive_user"
+    client_id = "web"
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        # 1. Start & send turns
+        await client.post("/startConversation", json={"userid": user_id, "client": client_id, "language": "en"})
+        await client.post("/reply", json={"userid": user_id, "client": client_id, "message": "Mathematics"})
+        await client.post("/reply", json={"userid": user_id, "client": client_id, "message": "I solve previous year papers and outline formulas."})
+
+        # 2. Call /resetConversation
+        reset_resp = await client.post("/resetConversation", json={"userid": user_id, "client": client_id})
+        assert reset_resp.status_code == 200
+        assert "archived and reset" in reset_resp.json()["message"] or "reset" in reset_resp.json()["message"]
+
+        # 3. Verify /conversation returns clean slate
+        conv_resp = await client.get(f"/conversation?userid={user_id}&client={client_id}")
+        assert conv_resp.status_code == 200
+        assert conv_resp.json()["messages"] == []
+
+    # 4. Database Verification
+    async with AsyncSessionLocal() as db:
+        # Verify archive table has entry
+        arc_q = select(Archive).where(Archive.user_id == user_id, Archive.user_client == client_id)
+        arc_res = await db.execute(arc_q)
+        archives = arc_res.scalars().all()
+        assert len(archives) == 1
+        archived_data = json.loads(archives[0].archived_conversation)
+        assert len(archived_data) > 0
+
+        # Verify active tables are cleared
+        ans_res = await db.execute(select(InterviewAnswer).where(InterviewAnswer.user_id == user_id, InterviewAnswer.user_client == client_id))
+        assert len(ans_res.scalars().all()) == 0
+
+        llm_res = await db.execute(select(LlmResponse).where(LlmResponse.user_id == user_id, LlmResponse.user_client == client_id))
+        assert len(llm_res.scalars().all()) == 0
+
+        strat_res = await db.execute(select(UserStrategy).where(UserStrategy.user_id == user_id, UserStrategy.user_client == client_id))
+        assert len(strat_res.scalars().all()) == 0
+
+        # Verify ConversationState reset
+        st_res = await db.execute(select(ConversationState).where(ConversationState.id == f"{user_id}:{client_id}"))
+        state = st_res.scalar_one()
+        assert state.current_turn == 0
+        assert state.current_context == 1
+        assert state.interview_completed is False
+        assert state.current_conversation_step == "intro"

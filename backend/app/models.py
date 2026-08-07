@@ -200,3 +200,11 @@ class SurveyResponse(Base):
     language: Mapped[str] = mapped_column(sa.String(8))
     responses: Mapped[dict] = mapped_column(sa.JSON)
     submitted_at: Mapped[datetime.datetime] = mapped_column(server_default=sa.func.now())
+
+class Archive(Base):
+    __tablename__ = "archive"
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(sa.String(64), index=True)
+    user_client: Mapped[str] = mapped_column(sa.String(64))
+    archived_conversation: Mapped[str] = mapped_column(sa.String())
+    archived_at: Mapped[datetime.datetime] = mapped_column(server_default=sa.func.now())
