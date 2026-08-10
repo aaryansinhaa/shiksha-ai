@@ -1,3 +1,4 @@
+import time
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_async_db
@@ -31,11 +32,13 @@ async def log_tab_event(
     payload: TabEventRequest,
     db: AsyncSession = Depends(get_async_db)
 ):
+    ts = payload.timestamp if payload.timestamp is not None else int(time.time() * 1000)
     log_entry = ActivityLog(
         user_id=payload.user_id,
         user_client=payload.user_client,
         action=f"tab_event_{payload.event_type}",
-        timestamp=payload.timestamp
+        step=payload.event_type,
+        timestamp=ts
     )
     db.add(log_entry)
     await db.commit()
@@ -46,6 +49,7 @@ async def log_interaction(
     payload: InteractionLogRequest,
     db: AsyncSession = Depends(get_async_db)
 ):
+    ts = payload.timestamp if payload.timestamp is not None else int(time.time() * 1000)
     log_entry = ActivityLog(
         user_id=payload.user_id,
         user_client=payload.user_client,
@@ -54,7 +58,7 @@ async def log_interaction(
         context=payload.context,
         strategy=payload.strategy,
         step=payload.step,
-        timestamp=1000
+        timestamp=ts
     )
     db.add(log_entry)
     await db.commit()

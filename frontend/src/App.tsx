@@ -10,13 +10,13 @@ import { ProtocolEditor } from './components/ProtocolEditor';
 import { SurveyForm } from './components/SurveyForm';
 import { ResultsView } from './components/ResultsView';
 import { useChatStore } from './store/useChatStore';
-import { useMouseTracker } from './hooks/useMouseTracker';
+import { useTelemetry } from './hooks/useTelemetry';
 
 const queryClient = new QueryClient();
 
 export const AppContent: React.FC = () => {
   const { hasConsent } = useChatStore();
-  useMouseTracker();
+  useTelemetry();
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">

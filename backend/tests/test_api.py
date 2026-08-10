@@ -4,7 +4,7 @@ from httpx import AsyncClient, ASGITransport
 from main import app
 from app.database import engine, Base, AsyncSessionLocal
 from sqlalchemy import select
-from app.models import ConversationCompletedContexts, ConversationState, UserStrategy, StrategyEvaluation, User, Archive, InterviewAnswer, LlmResponse
+from app.models import ConversationCompletedContexts, ConversationState, UserStrategy, StrategyEvaluation, User, Archive, InterviewAnswer, LlmResponse, ActivityLog
 from app.services.state_machine import calculate_scores
 
 @pytest.mark.asyncio
@@ -256,3 +256,43 @@ async def test_reset_conversation_archiving_and_cleanup():
         assert state.current_context == 1
         assert state.interview_completed is False
         assert state.current_conversation_step == "intro"
+
+@pytest.mark.asyncio
+async def test_telemetry_timestamps_and_tab_events():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    user_id = "test_telemetry_user"
+    client_id = "web"
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        # 1. Test /log/interaction without explicit timestamp -> Should save real epoch ms (> 1_000_000_000_000, not hardcoded 1000!)
+        resp1 = await client.post("/log/interaction", json={
+            "user_id": user_id,
+            "user_client": client_id,
+            "action": "click_button",
+            "step": "intro"
+        })
+        assert resp1.status_code == 200
+
+        # 2. Test /log/tab_event for tab_blur and tab_focus
+        resp2 = await client.post("/log/tab_event", json={
+            "user_id": user_id,
+            "user_client": client_id,
+            "event_type": "tab_blur",
+            "timestamp": 1700000000000
+        })
+        assert resp2.status_code == 200
+
+    async with AsyncSessionLocal() as db:
+        # Query ActivityLog rows
+        q = select(ActivityLog).where(ActivityLog.user_id == user_id, ActivityLog.user_client == client_id)
+        res = await db.execute(q)
+        logs = res.scalars().all()
+        assert len(logs) == 2
+
+        interaction_log = next(l for l in logs if l.action == "click_button")
+        assert interaction_log.timestamp > 1_000_000_000_000  # Valid epoch ms, NOT 1000!
+
+        tab_log = next(l for l in logs if "tab_blur" in l.action or l.step == "tab_blur")
+        assert tab_log.timestamp == 1700000000000

@@ -18,7 +18,7 @@ class TabEventRequest(BaseModel):
     user_id: Optional[str] = None
     user_client: Optional[str] = "web"
     event_type: str = Field(..., description="e.g. tab_focus or tab_blur")
-    timestamp: int
+    timestamp: Optional[int] = None
 
 class InteractionLogRequest(BaseModel):
     user_id: Optional[str] = None
@@ -28,3 +28,4 @@ class InteractionLogRequest(BaseModel):
     context: Optional[str] = None
     strategy: Optional[str] = None
     step: Optional[str] = None
+    timestamp: Optional[int] = None
