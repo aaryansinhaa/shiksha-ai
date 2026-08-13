@@ -208,3 +208,13 @@ class Archive(Base):
     user_client: Mapped[str] = mapped_column(sa.String(64))
     archived_conversation: Mapped[str] = mapped_column(sa.String())
     archived_at: Mapped[datetime.datetime] = mapped_column(server_default=sa.func.now())
+
+class Protocol(Base):
+    __tablename__ = "protocols"
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(sa.String(64), unique=True, index=True)
+    title: Mapped[str] = mapped_column(sa.String(256))
+    languages: Mapped[dict] = mapped_column(sa.JSON)
+    steps: Mapped[dict] = mapped_column(sa.JSON)
+    created_at: Mapped[datetime.datetime] = mapped_column(server_default=sa.func.now())
+    updated_at: Mapped[datetime.datetime] = mapped_column(server_default=sa.func.now(), onupdate=sa.func.now())

@@ -296,3 +296,65 @@ async def test_telemetry_timestamps_and_tab_events():
 
         tab_log = next(l for l in logs if "tab_blur" in l.action or l.step == "tab_blur")
         assert tab_log.timestamp == 1700000000000
+
+@pytest.mark.asyncio
+async def test_protocol_crud_export_import():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        # 1. GET /protocols -> List (ensure interview_default exists)
+        list_resp = await client.get("/protocols")
+        assert list_resp.status_code == 200
+        protos = list_resp.json()
+        assert len(protos) >= 1
+        assert any(p["name"] == "interview_default" for p in protos)
+
+        # 2. POST /protocols -> Create custom protocol
+        new_proto = {
+            "name": "test_protocol_01",
+            "title": "Test Custom Protocol",
+            "languages": ["en", "hi"],
+            "steps": [{"id": "s1", "type": "scenario"}]
+        }
+        create_resp = await client.post("/protocols", json=new_proto)
+        assert create_resp.status_code == 201
+        assert create_resp.json()["name"] == "test_protocol_01"
+
+        # 3. GET /protocols/test_protocol_01 -> Retrieve
+        get_resp = await client.get("/protocols/test_protocol_01")
+        assert get_resp.status_code == 200
+        assert get_resp.json()["title"] == "Test Custom Protocol"
+
+        # 4. PUT /protocols/test_protocol_01 -> Update
+        update_resp = await client.put("/protocols/test_protocol_01", json={"title": "Updated Custom Protocol"})
+        assert update_resp.status_code == 200
+        assert update_resp.json()["title"] == "Updated Custom Protocol"
+
+        # 5. GET /protocols/test_protocol_01/export -> Export JSON
+        export_resp = await client.get("/protocols/test_protocol_01/export")
+        assert export_resp.status_code == 200
+        assert "attachment;" in export_resp.headers.get("content-disposition", "")
+        export_data = export_resp.json()
+        assert export_data["name"] == "test_protocol_01"
+        assert export_data["title"] == "Updated Custom Protocol"
+
+        # 6. POST /protocols/import -> Import payload
+        import_proto = {
+            "name": "imported_protocol_01",
+            "title": "Imported Test Protocol",
+            "languages": ["en"],
+            "steps": [{"id": "imp1"}]
+        }
+        import_resp = await client.post("/protocols/import", json=import_proto)
+        assert import_resp.status_code == 200
+        assert import_resp.json()["name"] == "imported_protocol_01"
+
+        # 7. DELETE /protocols/test_protocol_01 -> Delete
+        del_resp = await client.delete("/protocols/test_protocol_01")
+        assert del_resp.status_code == 200
+        assert del_resp.json()["status"] == "deleted"
+
+        # Verify deleted
+        get_del = await client.get("/protocols/test_protocol_01")
+        assert get_del.status_code == 404

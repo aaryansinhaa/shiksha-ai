@@ -39,6 +39,17 @@ async def lifespan(app: FastAPI):
                     archived_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                 );
             """))
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS protocols (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(64) UNIQUE NOT NULL,
+                    title VARCHAR(256) NOT NULL,
+                    languages JSON NOT NULL,
+                    steps JSON NOT NULL,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+            """))
             await conn.run_sync(Base.metadata.create_all)
         
         from app.services.state_machine import seed_languages_and_contexts
