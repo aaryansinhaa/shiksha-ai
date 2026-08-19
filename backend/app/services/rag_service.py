@@ -56,11 +56,11 @@ async def match_strategy_rag(
         return []
 
     try:
-        # Use pgvector L2 distance operator (<->)
+        # Use pgvector Cosine distance operator (<=>)
         query_sql = text("""
-            SELECT strategy_id, name, phase, category, content
+            SELECT strategy_id, name, phase, category, content, (embedding <=> :vec) as distance
             FROM strategy_embedding
-            ORDER BY embedding <-> :vec
+            ORDER BY embedding <=> :vec
             LIMIT :k
         """)
         result = await db.execute(query_sql, {"vec": str(query_vec), "k": top_k})
