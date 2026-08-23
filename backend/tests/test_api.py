@@ -308,7 +308,7 @@ async def test_protocol_crud_export_import():
         assert list_resp.status_code == 200
         protos = list_resp.json()
         assert len(protos) >= 1
-        assert any(p["name"] == "interview_default" for p in protos)
+        assert any(p["name"] == "zimmerman_14_taxon_srl_protocol" for p in protos)
 
         # 2. POST /protocols -> Create custom protocol
         new_proto = {

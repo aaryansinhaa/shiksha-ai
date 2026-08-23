@@ -13,7 +13,7 @@ interface ProtocolItem {
 export const ProtocolEditor: React.FC = () => {
   const { language } = useChatStore();
   const [protocols, setProtocols] = useState<ProtocolItem[]>([]);
-  const [selectedName, setSelectedName] = useState<string>('interview_default');
+  const [selectedName, setSelectedName] = useState<string>('zimmerman_14_taxon_srl_protocol');
   const [jsonText, setJsonText] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -111,7 +111,7 @@ export const ProtocolEditor: React.FC = () => {
 
   const handleDelete = async () => {
     if (!selectedName) return;
-    if (selectedName === 'interview_default') {
+    if (selectedName === 'zimmerman_14_taxon_srl_protocol' || selectedName === 'interview_default') {
       showStatus('error', language === 'hi' ? 'डिफ़ॉल्ट प्रोटोकॉल हटाया नहीं जा सकता' : 'Cannot delete standard default protocol');
       return;
     }
@@ -189,7 +189,7 @@ export const ProtocolEditor: React.FC = () => {
             <span>{language === 'hi' ? 'निर्यात (Export)' : 'Export JSON'}</span>
           </button>
 
-          {selectedName !== 'interview_default' && (
+          {selectedName !== 'zimmerman_14_taxon_srl_protocol' && selectedName !== 'interview_default' && (
             <button
               onClick={handleDelete}
               className="flex items-center gap-1.5 px-3 py-2 bg-rose-900/40 hover:bg-rose-900/60 text-rose-300 rounded-xl font-medium text-xs transition border border-rose-800"

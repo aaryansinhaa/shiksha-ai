@@ -10,18 +10,6 @@ from app.schemas.protocol import ProtocolCreate, ProtocolUpdate, ProtocolRespons
 
 router = APIRouter(prefix="/protocols", tags=["Protocols"])
 
-DEFAULT_PROTOCOL = {
-    "name": "interview_default",
-    "title": "Shiksha AI Standard SRL Protocol",
-    "languages": ["en", "hi"],
-    "steps": [
-        {"id": "intro", "type": "scenario", "question_en": "What subject are you studying?", "question_hi": "आप किस विषय की पढ़ाई कर रहे हैं?"},
-        {"id": "strategy", "type": "open_question", "question_en": "How do you prepare for a difficult exam?", "question_hi": "आप किसी कठिन परीक्षा की तैयारी कैसे करते हैं?"},
-        {"id": "frequency", "type": "likert_rating", "min": 1, "max": 5},
-        {"id": "complete", "type": "feedback_summary"}
-    ]
-}
-
 ELABORATE_SRL_PROTOCOL = {
     "name": "zimmerman_14_taxon_srl_protocol",
     "title": "Zimmerman 14-Taxon Comprehensive Self-Regulated Learning Protocol",
@@ -113,16 +101,9 @@ ELABORATE_SRL_PROTOCOL = {
     ]
 }
 
+DEFAULT_PROTOCOL = ELABORATE_SRL_PROTOCOL
+
 async def _ensure_default_protocol(db: AsyncSession):
-    res = await db.execute(select(Protocol).where(Protocol.name == "interview_default"))
-    if not res.scalar_one_or_none():
-        db.add(Protocol(
-            name=DEFAULT_PROTOCOL["name"],
-            title=DEFAULT_PROTOCOL["title"],
-            languages=DEFAULT_PROTOCOL["languages"],
-            steps=DEFAULT_PROTOCOL["steps"]
-        ))
-    
     res_elab = await db.execute(select(Protocol).where(Protocol.name == "zimmerman_14_taxon_srl_protocol"))
     if not res_elab.scalar_one_or_none():
         db.add(Protocol(
